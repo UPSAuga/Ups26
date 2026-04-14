@@ -10,22 +10,8 @@
 <style>
   body {
     margin: 0;
-    font-family: Arial, sans-serif;
-    background: #ffffff;
-    color: #0f172a;
-  }
-
-  .header {
-    text-align: center;
-    padding: 15px;
-  }
-
-  .logo {
-    width: 160px;
-    height: 160px;
-    margin: 10px auto;
-    display: block;
-    object-fit: contain;
+    font-family: Arial;
+    background: white;
   }
 
   .container {
@@ -34,36 +20,39 @@
     margin: auto;
   }
 
+  .logo {
+    width: 180px;
+    display: block;
+    margin: auto;
+  }
+
   input, button {
     width: 100%;
     padding: 12px;
     margin-top: 10px;
-    border-radius: 10px;
-    border: 1px solid #cbd5e1;
     font-size: 16px;
+    border-radius: 10px;
+    border: 1px solid #ccc;
   }
 
   button {
     background: #38bdf8;
     color: white;
     border: none;
-    font-weight: bold;
   }
 
   button:disabled {
     background: #93c5fd;
   }
 
-  #editor, #previewScreen {
+  #editor, #preview {
     display: none;
-    padding: 10px;
   }
 
   #canvasContainer {
+    width: 100%;
     border: 2px solid #38bdf8;
     margin-top: 10px;
-    width: 100%;
-    height: 500px;
     touch-action: none;
   }
 
@@ -74,34 +63,24 @@
   .slider {
     width: 100%;
   }
-
-  .topTitle {
-    text-align: center;
-    font-weight: bold;
-    color: #0284c7;
-  }
 </style>
 </head>
 
 <body>
 
-<!-- SCREEN 1 -->
+<!-- UPLOAD SCREEN -->
 <div id="uploadScreen" class="container">
-  <div class="header">
-    <img class="logo" src="event-logo.png"/>
-    <h3>6th Uganda Pharmaceutical Symposium 2026</h3>
-  </div>
+  <img class="logo" src="event-logo.png" />
+  <h3 style="text-align:center;">6th Uganda Pharmaceutical Symposium 2026</h3>
 
-  <input type="text" id="nameInput" placeholder="Enter your name" />
-  <input type="file" id="imageUpload" accept="image/*" />
+  <input type="text" id="nameInput" placeholder="Enter your name"/>
+  <input type="file" id="imageUpload" accept="image/*"/>
 
   <button id="continueBtn" disabled>Continue</button>
 </div>
 
-<!-- SCREEN 2 -->
-<div id="editor">
-  <div class="topTitle">Adjust Your Poster</div>
-
+<!-- EDITOR -->
+<div id="editor" class="container">
   <div id="canvasContainer"></div>
 
   <div class="controls">
@@ -109,15 +88,15 @@
     <input type="range" id="zoom" min="0.5" max="3" step="0.01" value="1" class="slider"/>
 
     <label>Rotate</label>
-    <input type="range" id="rotate" min="-45" max="45" step="1" value="0" class="slider"/>
+    <input type="range" id="rotate" min="-45" max="45" value="0" class="slider"/>
 
     <button id="resetBtn">Reset</button>
     <button id="previewBtn">Preview</button>
   </div>
 </div>
 
-<!-- SCREEN 3 -->
-<div id="previewScreen" class="container">
+<!-- PREVIEW -->
+<div id="preview" class="container">
   <h3>Preview</h3>
   <canvas id="finalCanvas"></canvas>
 
@@ -126,35 +105,36 @@
 </div>
 
 <script>
-let stage, layer, userImageNode, templateImageNode;
-let uploadedImage = null;
+let stage, layer;
+let userImageNode;
+let uploadedImage;
 let userName = "";
 
+// UI
 const uploadScreen = document.getElementById("uploadScreen");
 const editor = document.getElementById("editor");
-const previewScreen = document.getElementById("previewScreen");
+const preview = document.getElementById("preview");
 
 const nameInput = document.getElementById("nameInput");
 const imageUpload = document.getElementById("imageUpload");
 const continueBtn = document.getElementById("continueBtn");
 
-nameInput.addEventListener("input", checkReady);
-imageUpload.addEventListener("change", checkReady);
+nameInput.oninput = check;
+imageUpload.onchange = check;
 
-function checkReady() {
+function check() {
   continueBtn.disabled = !(nameInput.value && imageUpload.files.length);
 }
 
-continueBtn.onclick = function () {
+continueBtn.onclick = () => {
   userName = nameInput.value;
   const file = imageUpload.files[0];
-  const reader = new FileReader();
 
-  reader.onload = function (e) {
+  const reader = new FileReader();
+  reader.onload = e => {
     uploadedImage = e.target.result;
     startEditor();
   };
-
   reader.readAsDataURL(file);
 };
 
@@ -165,18 +145,18 @@ function startEditor() {
 
   stage = new Konva.Stage({
     container: "canvasContainer",
-    width: 350,
-    height: 500
+    width: 1000,
+    height: 1125
   });
 
   layer = new Konva.Layer();
   stage.add(layer);
 
-  // User image
-  const imageObj = new Image();
-  imageObj.onload = function () {
+  // LOAD USER IMAGE
+  const img = new Image();
+  img.onload = () => {
     userImageNode = new Konva.Image({
-      image: imageObj,
+      image: img,
       x: 0,
       y: 0,
       draggable: true,
@@ -187,12 +167,12 @@ function startEditor() {
     layer.add(userImageNode);
     layer.draw();
   };
-  imageObj.src = uploadedImage;
+  img.src = uploadedImage;
 
-  // TEMPLATE OVERLAY (replace with your PNG)
+  // TEMPLATE (CLIPPING MASK)
   const template = new Image();
-  template.onload = function () {
-    templateImageNode = new Konva.Image({
+  template.onload = () => {
+    const templateNode = new Konva.Image({
       image: template,
       x: 0,
       y: 0,
@@ -201,7 +181,16 @@ function startEditor() {
       listening: false
     });
 
-    layer.add(templateImageNode);
+    layer.add(templateNode);
+
+    // 🔥 IMPORTANT: clip image inside template bounds
+    userImageNode.setAttrs({
+      clipX: 0,
+      clipY: 0,
+      clipWidth: stage.width(),
+      clipHeight: stage.height()
+    });
+
     layer.draw();
   };
 
@@ -211,10 +200,7 @@ function startEditor() {
 // ZOOM
 document.getElementById("zoom").oninput = function () {
   if (userImageNode) {
-    userImageNode.scale({
-      x: this.value,
-      y: this.value
-    });
+    userImageNode.scale({ x: this.value, y: this.value });
     layer.draw();
   }
 };
@@ -242,27 +228,24 @@ document.getElementById("resetBtn").onclick = function () {
 
 // PREVIEW
 document.getElementById("previewBtn").onclick = function () {
-  const dataURL = stage.toDataURL({ pixelRatio: 4 });
+  const dataURL = stage.toDataURL({ pixelRatio: 2 });
 
-  uploadScreen.style.display = "none";
   editor.style.display = "none";
-  previewScreen.style.display = "block";
+  preview.style.display = "block";
 
   const img = new Image();
   img.src = dataURL;
   img.style.width = "100%";
-  document.getElementById("previewScreen").prepend(img);
+
+  preview.prepend(img);
 };
 
-// DOWNLOAD HIGH RES (2000x2250)
+// DOWNLOAD (HIGH RES)
 document.getElementById("downloadBtn").onclick = function () {
-  const scaleX = 2000 / stage.width();
-  const scaleY = 2250 / stage.height();
-
   const uri = stage.toDataURL({
     width: 2000,
     height: 2250,
-    pixelRatio: Math.max(scaleX, scaleY)
+    pixelRatio: 2
   });
 
   const link = document.createElement("a");
@@ -273,7 +256,7 @@ document.getElementById("downloadBtn").onclick = function () {
 
 // BACK
 document.getElementById("backBtn").onclick = function () {
-  previewScreen.style.display = "none";
+  preview.style.display = "none";
   editor.style.display = "block";
 };
 </script>
